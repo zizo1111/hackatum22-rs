@@ -13,6 +13,12 @@ C0 = 299792458
 FC = 77e9
 LAMBDA = C0 / FC
 
+X_SCALE = [-0.019780670972295192, 0.01646335413618738]
+Y_SCALE = [-0.01849861300712485, 0.01881614965175858]
+Z_SCALE = [0.18499558044178727, 0.1961440005354188]
+ALPHA_SCALE = [-8.30308303, 8.66408664]
+BETA_SCALE = [-8.5738357375, 9.02509025]
+GAMMA_SCALE = [-18.3840125425, 18.3840125]
 
 class MicrowaveDataset(Dataset):
 
@@ -30,7 +36,14 @@ class MicrowaveDataset(Dataset):
                 labels_dict = json.load(f)
                 for values in labels_dict:
                     p_pivot = np.array(values['p_pivot'])
+                    p_pivot[0] = (p_pivot[0] - X_SCALE[0]) / (X_SCALE[1] -  X_SCALE[0])
+                    p_pivot[1] = (p_pivot[1] - Y_SCALE[0]) / (Y_SCALE[1] -  Y_SCALE[0])
+                    p_pivot[2] = (p_pivot[2] - Z_SCALE[0]) / (Z_SCALE[1] -  Z_SCALE[0])
+
                     angles = np.array([values['alpha'], values['beta'], values['gamma']])
+                    angles[0] = (angles[0] - ALPHA_SCALE[0]) / (ALPHA_SCALE[1] -  ALPHA_SCALE[0])
+                    angles[1] = (angles[1] - BETA_SCALE[0]) / (BETA_SCALE[1] -  BETA_SCALE[0])
+                    angles[2] = (angles[2] - GAMMA_SCALE[0]) / (GAMMA_SCALE[1] -  GAMMA_SCALE[0])
 
                     self.labels[values['file']] = np.hstack((p_pivot, angles))
 
@@ -86,7 +99,7 @@ class MicrowaveDataset(Dataset):
         if self.labels is not None:
             label = torch.from_numpy(self.labels[self.file_names[idx]])
             label.type(torch.float32)
-        
+
         data = {'inputs': preprocessed_input,
                 'labels': label}
 
@@ -130,6 +143,83 @@ class MicrowaveDataset(Dataset):
 
             return _volume, _x_vec, _y_vec, _z_vec
 
+def find_min_max(dataset):
+    min_x = None
+    max_x = None
+    min_y = None
+    max_y = None
+    min_z = None
+    max_z = None
+    min_alpha = None
+    max_alpha = None
+    min_beta = None
+    max_beta = None
+    min_gamma = None
+    max_gamma = None
+
+    for i in range(len(dataset)):
+        ret = dataset.__getitem__(i)
+        labels = ret['labels'].numpy()
+        if min_x is None:
+            min_x = labels[0]
+        elif labels[0] < min_x:
+            min_x = labels[0]
+        if max_x is None:
+            max_x = labels[0]
+        elif labels[0] > max_x:
+            max_x = labels[0]
+
+        if min_y is None:
+            min_y = labels[1]
+        elif labels[1] < min_y:
+            min_y = labels[1]
+        if max_y is None:
+            max_y = labels[1]
+        elif labels[1] > max_y:
+            max_y = labels[1]
+
+
+        if min_z is None:
+            min_z = labels[2]
+        elif labels[2] < min_z:
+            min_z = labels[2]
+        if max_z is None:
+            max_z = labels[2]
+        elif labels[2] > max_z:
+            max_z = labels[2]
+
+        
+        if min_alpha is None:
+            min_alpha = labels[3]
+        elif labels[3] < min_alpha:
+            min_alpha = labels[3]
+        if max_alpha is None:
+            max_alpha = labels[3]
+        elif labels[3] > max_alpha:
+            max_alpha = labels[3]
+
+        if min_beta is None:
+            min_beta = labels[4]
+        elif labels[4] < min_beta:
+            min_beta = labels[4]
+        if max_beta is None:
+            max_beta = labels[4]
+        elif labels[4] > max_beta:
+            max_beta = labels[4]
+
+        if min_gamma is None:
+            min_gamma = labels[5]
+        elif labels[5] < min_gamma:
+            min_gamma = labels[5]
+        if max_gamma is None:
+            max_gamma = labels[5]
+        elif labels[5] > max_gamma:
+            max_gamma = labels[5]
+
+    print('min_x {}, max_x {}, min_y {}, max_y {}, min_z {}, max_z {},min_alpha {}, max_alpha {}, min_beta {}, max_beta {}, min_gamma {}, max_gamma {}'.format(
+        min_x, max_x, min_y, max_y, min_z, max_z, min_alpha, max_alpha, min_beta, max_beta, min_gamma, max_gamma
+    ))
+
 
 if __name__ == "__main__":
     dataset = MicrowaveDataset('../data/dummy_measurements/volumes',
@@ -138,3 +228,5 @@ if __name__ == "__main__":
     for i in range(len(dataset)):
         ret = dataset.__getitem__(i)
         print(ret['labels'], ret['inputs'].shape)
+
+# find_min_max(dataset)
