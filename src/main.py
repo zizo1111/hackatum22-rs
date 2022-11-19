@@ -46,7 +46,6 @@ def import_volume(file_path):
         _x_vec = def_json["origin"]["x"] + np.arange(def_json["dimensions"]["x"]) * def_json["spacing"]["x"]
         _y_vec = def_json["origin"]["y"] + np.arange(def_json["dimensions"]["y"]) * def_json["spacing"]["y"]
         _z_vec = def_json["origin"]["z"] + np.arange(def_json["dimensions"]["z"]) * def_json["spacing"]["z"]
-        print(_x_vec.shape, _y_vec.shape, _z_vec.shape)
         return _volume, _x_vec, _y_vec, _z_vec
 
 
@@ -203,7 +202,6 @@ if __name__ == "__main__":
 
     # 1 --> visualize magnitude of the MIP
     image = 20 * np.log10(np.abs(volume_max / np.max(volume_max)))
-    print(image.shape)
     display(
         image,
         img_title="Maximum intensity projection (MIP)",
@@ -233,7 +231,6 @@ if __name__ == "__main__":
 
     # 3 --> visualize the phase of a selected slice (opacity scaled by alpha_data)
     _, V_slice_phase = complex2magphase(volume[:, :, Z_IDX - 1])
-    print(V_slice_phase.shape)
     display(
         180 / math.pi * V_slice_phase,
         color_map=plt.get_cmap("twilight"),
