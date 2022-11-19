@@ -1,5 +1,5 @@
 import numpy as np
-
+import math
 
 def compute_slice(_volume, _z_idx=0):
     """Compute a single slice of the given 3D volumetric data in z-direction.
@@ -61,3 +61,6 @@ def compute_fft(img):
 
     fft_img = np.fft.fftshift(np.fft.fft2(img), axes=(0, 1))
     return fft_img
+
+def to_degrees(input):
+    return 180 / math.pi * input

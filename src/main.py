@@ -46,7 +46,7 @@ def import_volume(file_path):
         _x_vec = def_json["origin"]["x"] + np.arange(def_json["dimensions"]["x"]) * def_json["spacing"]["x"]
         _y_vec = def_json["origin"]["y"] + np.arange(def_json["dimensions"]["y"]) * def_json["spacing"]["y"]
         _z_vec = def_json["origin"]["z"] + np.arange(def_json["dimensions"]["z"]) * def_json["spacing"]["z"]
-
+        print(_x_vec.shape, _y_vec.shape, _z_vec.shape)
         return _volume, _x_vec, _y_vec, _z_vec
 
 
@@ -182,7 +182,7 @@ if __name__ == "__main__":
     Z_IDX = 13
 
     volume, x_vec, y_vec, z_vec = import_volume(
-        r"../../volumes/example-1.img"
+        r"../examples/20221110-104101-918.img"
     )
 
     Nx = x_vec.size
