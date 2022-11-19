@@ -85,9 +85,10 @@ class MicrowaveDataset(Dataset):
         label = None
         if self.labels is not None:
             label = torch.from_numpy(self.labels[self.file_names[idx]])
-
+            label.type(torch.float32)
+        
         data = {'inputs': preprocessed_input,
-                'label': label}
+                'labels': label}
 
         return data
 
@@ -136,4 +137,4 @@ if __name__ == "__main__":
 
     for i in range(len(dataset)):
         ret = dataset.__getitem__(i)
-        print(ret['label'], ret['inputs'].shape)
+        print(ret['labels'], ret['inputs'].shape)
