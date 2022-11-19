@@ -182,7 +182,7 @@ if __name__ == "__main__":
     Z_IDX = 13
 
     volume, x_vec, y_vec, z_vec = import_volume(
-        r"../examples/20221110-104101-918.img"
+        r"../examples/example-1.img"
     )
 
     Nx = x_vec.size

@@ -21,7 +21,7 @@ class MicrowaveDataset(Dataset):
         self.labels_path = labels_path
 
         # list all files in root directory   
-        l=os.listdir(self.root_dir)
+        l = os.listdir(self.root_dir)
         self.file_names = list(set([x.split('.')[0] for x in l]))
         self.labels = None
         if labels_path is not None:
@@ -33,7 +33,6 @@ class MicrowaveDataset(Dataset):
                     angles = np.array([values['alpha'], values['beta'], values['gamma']])
 
                     self.labels[values['file']] = np.hstack((p_pivot, angles))
-        
 
     def __len__(self):
         return len(self.file_names)
@@ -44,10 +43,11 @@ class MicrowaveDataset(Dataset):
 
         volume_max, kmax = compute_mip(volume)
         volume_max_range = (np.min(np.abs(volume_max)), np.max(np.abs(volume_max)))
-        
+
         # we need to scale by the alpha data
         alpha_data = np.clip(
-            1.8 * ((np.abs(volume_max) - volume_max_range[0]) / (volume_max_range[1] - volume_max_range[0])) - 0.25, 0, 1,
+            1.8 * ((np.abs(volume_max) - volume_max_range[0]) / (volume_max_range[1] - volume_max_range[0])) - 0.25, 0,
+            1,
         )
 
         # magnitude of the MIP
@@ -60,8 +60,7 @@ class MicrowaveDataset(Dataset):
         )
         volume_max_phase = torch.from_numpy(to_degrees(volume_max_phase))
 
-    
-        # the phase of a selected slice 
+        # the phase of a selected slice
         _, V_slice_phase = complex2magphase(volume[:, :, Z_IDX - 1])
         V_slice_phase = torch.from_numpy(to_degrees(V_slice_phase))
 
@@ -79,18 +78,18 @@ class MicrowaveDataset(Dataset):
         S_slice_mag_dB = 20 * np.log10(np.abs(S_slice))
         S_slice_mag_dB = torch.from_numpy(S_slice_mag_dB)
 
-        preprocessed_input = torch.stack((mip_mag, volume_max_phase, V_slice_phase, mip_distance, S_MIP_mag_dB, S_slice_mag_dB))
+        preprocessed_input = torch.stack(
+            (mip_mag, volume_max_phase, V_slice_phase, mip_distance, S_MIP_mag_dB, S_slice_mag_dB))
+        preprocessed_input = preprocessed_input.type(torch.float32)
 
         label = None
         if self.labels is not None:
             label = torch.from_numpy(self.labels[self.file_names[idx]])
 
-        data = {'inputs': preprocessed_input, 
+        data = {'inputs': preprocessed_input,
                 'label': label}
 
         return data
-
-
 
     def import_volume(self, filename):
         """Import 3D volumetric data from file.
@@ -117,7 +116,7 @@ class MicrowaveDataset(Dataset):
 
         v_mag_phase = nibabel.load(file_path_hdr)
         _volume = v_mag_phase.dataobj[:, :, : v_mag_phase.shape[2] // 2] * np.exp(
-            1j * v_mag_phase.dataobj[:, :, v_mag_phase.shape[2] // 2 :]
+            1j * v_mag_phase.dataobj[:, :, v_mag_phase.shape[2] // 2:]
         )
         if len(_volume.shape) > 3:
             _volume = np.squeeze(_volume)
@@ -132,7 +131,8 @@ class MicrowaveDataset(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = MicrowaveDataset('../data/dummy_measurements/volumes', '../data/dummy_measurements/labels_transformed.json')
+    dataset = MicrowaveDataset('../data/dummy_measurements/volumes',
+                               '../data/dummy_measurements/labels_transformed.json')
 
     for i in range(len(dataset)):
         ret = dataset.__getitem__(i)
