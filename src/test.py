@@ -76,4 +76,7 @@ if __name__ == '__main__':
         # device = torch.cuda.current_device()
         device = 'cuda'
 
-    test(device, '../models/model_20221119_115416_25.pth')
+    #test(device, '../models/model_20221119_115416_25.pth')
+    #test(device, '../models/model_20221119_134025_30_0.02.pth')
+    test(device, '../models/model_20221119_152727_18_best_0.004.pth')
+

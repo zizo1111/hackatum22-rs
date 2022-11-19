@@ -36,16 +36,36 @@ class MicrowaveDataset(Dataset):
                 labels_dict = json.load(f)
                 for values in labels_dict:
                     p_pivot = np.array(values['p_pivot'])
-                    p_pivot[0] = (p_pivot[0] - X_SCALE[0]) / (X_SCALE[1] -  X_SCALE[0])
-                    p_pivot[1] = (p_pivot[1] - Y_SCALE[0]) / (Y_SCALE[1] -  Y_SCALE[0])
-                    p_pivot[2] = (p_pivot[2] - Z_SCALE[0]) / (Z_SCALE[1] -  Z_SCALE[0])
+                    p_pivot = self.normalize_input_pivot(p_pivot)
 
                     angles = np.array([values['alpha'], values['beta'], values['gamma']])
-                    angles[0] = (angles[0] - ALPHA_SCALE[0]) / (ALPHA_SCALE[1] -  ALPHA_SCALE[0])
-                    angles[1] = (angles[1] - BETA_SCALE[0]) / (BETA_SCALE[1] -  BETA_SCALE[0])
-                    angles[2] = (angles[2] - GAMMA_SCALE[0]) / (GAMMA_SCALE[1] -  GAMMA_SCALE[0])
+                    angles = self.normalize_input_angles(angles)
 
                     self.labels[values['file']] = np.hstack((p_pivot, angles))
+
+    def normalize_input_angles(self, angles):
+        angles[0] = (angles[0] - ALPHA_SCALE[0]) / (ALPHA_SCALE[1] - ALPHA_SCALE[0])
+        angles[1] = (angles[1] - BETA_SCALE[0]) / (BETA_SCALE[1] - BETA_SCALE[0])
+        angles[2] = (angles[2] - GAMMA_SCALE[0]) / (GAMMA_SCALE[1] - GAMMA_SCALE[0])
+        return angles
+
+    def denormalize_input_angles(self, angles):
+        angles[0] = angles[0] * (ALPHA_SCALE[1] - ALPHA_SCALE[0]) + ALPHA_SCALE[0]
+        angles[1] = angles[1] * (BETA_SCALE[1] - BETA_SCALE[0]) + BETA_SCALE[0]
+        angles[2] = angles[2] * (GAMMA_SCALE[1] - GAMMA_SCALE[0]) + GAMMA_SCALE[0]
+        return angles
+
+    def normalize_input_pivot(self, p_pivot):
+        p_pivot[0] = (p_pivot[0] - X_SCALE[0]) / (X_SCALE[1] - X_SCALE[0])
+        p_pivot[1] = (p_pivot[1] - Y_SCALE[0]) / (Y_SCALE[1] - Y_SCALE[0])
+        p_pivot[2] = (p_pivot[2] - Z_SCALE[0]) / (Z_SCALE[1] - Z_SCALE[0])
+        return p_pivot
+
+    def denormalize_input_pivot(self, p_pivot):
+        p_pivot[0] = p_pivot[0] * (X_SCALE[1] - X_SCALE[0]) + X_SCALE[0]
+        p_pivot[1] = p_pivot[1] * (Y_SCALE[1] - Y_SCALE[0]) + Y_SCALE[0]
+        p_pivot[2] = p_pivot[2] * (Z_SCALE[1] - Z_SCALE[0]) + Z_SCALE[0]
+        return p_pivot
 
     def __len__(self):
         return len(self.file_names)
