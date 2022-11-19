@@ -182,7 +182,8 @@ if __name__ == "__main__":
     Z_IDX = 13
 
     volume, x_vec, y_vec, z_vec = import_volume(
-        r"../examples/example-1.img"
+        #r"../examples/example-1.img"
+        r"/media/hdd_4tb/Datasets/rohde_and_schwarz_measurements/20221119-150759-488_reco.img"
     )
 
     Nx = x_vec.size
