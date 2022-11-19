@@ -1,10 +1,11 @@
 import torch
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 # PyTorch TensorBoard support
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 from dataset import MicrowaveDataset
-from resnet import resnet50
+from resnet import resnet50, resnet101
 
 
 def train_one_epoch(training_loader, optimizer, model, loss_fn, epoch_index, tb_writer, device):
@@ -21,7 +22,7 @@ def train_one_epoch(training_loader, optimizer, model, loss_fn, epoch_index, tb_
         labels = data['labels'].to(device)
 
         # Zero your gradients for every batch!
-        #optimizer.zero_grad()
+        # optimizer.zero_grad()
 
         # Make predictions for this batch
         outputs = model(inputs)
@@ -39,8 +40,8 @@ def train_one_epoch(training_loader, optimizer, model, loss_fn, epoch_index, tb_
 
         # Gather data and report
         running_loss += loss.item()
-        if i % 100 == 99:
-            last_loss = running_loss / 100  # loss per batch
+        if i % 10 == 9:
+            last_loss = running_loss / 10  # loss per batch
             print('  batch {} loss: {}'.format(i + 1, last_loss))
             tb_x = epoch_index * len(training_loader) + i + 1
             tb_writer.add_scalar('Loss/train', last_loss, tb_x)
@@ -56,25 +57,36 @@ def train(device):
     test_size = len(full_dataset) - train_size
     train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
     # Create data loaders for our datasets; shuffle for training, not for validation
-    training_loader = torch.utils.data.DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=1)
-    validation_loader = torch.utils.data.DataLoader(val_dataset, batch_size=4, shuffle=False, num_workers=1)
+    training_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=1)
+    validation_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=1)
 
     loss_fn = torch.nn.MSELoss()
 
     model = resnet50(num_classes=6)
+    # model = resnet101(num_classes=6)
     # Optimizers specified in the torch.optim package
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3)
+
+    # scheduler = ExponentialLR(optimizer, end_lr=1e-5, num_iter=50)
+    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=5)
+
+    # learning rate finder
+    # lr_finder = LRFinder(model, optimizer, loss_fn, device=device)
+    # lr_finder.range_test(training_loader, end_lr=100, num_iter=100)
+    # lr_finder.plot()
+    # lr_finder.reset()
 
     # Initializing in a separate cell so we can easily add more epochs to the same run
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     writer = SummaryWriter('runs/microwave_trainer_{}'.format(timestamp))
     epoch_number = 0
 
-    EPOCHS = 5
-
+    EPOCHS = 50
+    patience = 0
     best_vloss = 1_000_000.
 
     model.to(device)
+    best_model = None
     for epoch in range(EPOCHS):
         print('EPOCH {}:'.format(epoch_number + 1))
 
@@ -82,12 +94,12 @@ def train(device):
         model.train(True)
         avg_loss = train_one_epoch(training_loader, optimizer, model, loss_fn, epoch_number, writer, device)
 
+
         # We don't need gradients on to do reporting
         model.train(False)
 
         model.eval()
         torch.cuda.empty_cache()
-
 
         running_vloss = 0.0
         with torch.no_grad():
@@ -110,12 +122,20 @@ def train(device):
 
         # Track best performance, and save the model's state
         if avg_vloss < best_vloss:
+            patience = 0
             best_vloss = avg_vloss
-            model_path = 'model_{}_{}'.format(timestamp, epoch_number)
-            torch.save(model.state_dict(), model_path)
+            best_model = model.state_dict()
+        else:
+            patience += 1
+        if patience > 5:
+            break
 
+        if epoch % 3 == 0:
+            scheduler.step()
         epoch_number += 1
         torch.cuda.empty_cache()
+    model_path = 'model_{}_{}'.format(timestamp, epoch_number)
+    torch.save(best_model, model_path)
 
 
 if __name__ == '__main__':

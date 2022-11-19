@@ -4,7 +4,7 @@ import torch
 import nibabel
 import json
 import math
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import numpy as np
 from preproccess import *
 
