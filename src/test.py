@@ -5,6 +5,7 @@ from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 from dataset import MicrowaveDataset
 from resnet import resnet50
+from dataset import denormalize_input_angles, denormalize_input_pivot, preprocess_input
 
 
 
@@ -57,26 +58,45 @@ def test(device, model_path):
     torch.cuda.empty_cache()
 
 
-def inference(model, inputs):
+def inference(model, device, input_file_name, input_dir):
 
     model.to(device)
     model.eval()
-    outputs = model(inputs).detach().cpu().numpy()
+    preprocessed_input = preprocess_input(input_file_name, input_dir)
+
+    # convert to batch 1 
+    preprocessed_input = torch.unsqueeze(preprocessed_input, 0)
+    preprocessed_input.to(device)
+
     
-    ret_dict = {'p_pivot' : outputs[:,:3],
-                'alpha' : outputs[:,3],
-                'beta': outputs[:,4], 
-                'gamma': outputs[:,5]}
+    outputs = model(preprocessed_input).detach().cpu().squeeze(0).numpy()
+
+    
+    angles = denormalize_input_angles(outputs[3:])
+
+    ret_dict = {'p_pivot' : denormalize_input_pivot(outputs[:3]),
+                'alpha' : angles[0],
+                'beta': angles[1], 
+                'gamma': angles[2]}
+    
+    print(ret_dict)
+    
     return ret_dict
 
 if __name__ == '__main__':
 
+    # print(torch.cuda.device_count())
+    # print(torch.cuda.get_device_name(0))
     device = torch.device("cpu")
-    if torch.cuda.is_available():
-        # device = torch.cuda.current_device()
-        device = 'cuda'
+    # if torch.cuda.is_available():
+    #     # device = torch.cuda.current_device()
+    #     device = 'cuda'
 
     #test(device, '../models/model_20221119_115416_25.pth')
     #test(device, '../models/model_20221119_134025_30_0.02.pth')
-    test(device, '../models/model_20221119_152727_18_best_0.004.pth')
+    #test(device, '../models/model_20221119_152727_18_best_0.004.pth')
+
+    model = resnet50(num_classes=6)
+    model.load_state_dict(torch.load('../models/model_20221119_152727_18_best_0.004.pth'))
+    ret = inference(model, device, 'example-1', '../examples')
 

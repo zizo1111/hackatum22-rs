@@ -20,112 +20,78 @@ ALPHA_SCALE = [-8.30308303, 8.66408664]
 BETA_SCALE = [-8.5738357375, 9.02509025]
 GAMMA_SCALE = [-18.3840125425, 18.3840125]
 
-class MicrowaveDataset(Dataset):
+def normalize_input_angles(angles):
+    angles[0] = (angles[0] - ALPHA_SCALE[0]) / (ALPHA_SCALE[1] - ALPHA_SCALE[0])
+    angles[1] = (angles[1] - BETA_SCALE[0]) / (BETA_SCALE[1] - BETA_SCALE[0])
+    angles[2] = (angles[2] - GAMMA_SCALE[0]) / (GAMMA_SCALE[1] - GAMMA_SCALE[0])
+    return angles
 
-    def __init__(self, root_dir, labels_path=None):
-        self.root_dir = root_dir
-        self.labels_path = labels_path
+def denormalize_input_angles(angles):
+    angles[0] = angles[0] * (ALPHA_SCALE[1] - ALPHA_SCALE[0]) + ALPHA_SCALE[0]
+    angles[1] = angles[1] * (BETA_SCALE[1] - BETA_SCALE[0]) + BETA_SCALE[0]
+    angles[2] = angles[2] * (GAMMA_SCALE[1] - GAMMA_SCALE[0]) + GAMMA_SCALE[0]
+    return angles
 
-        # list all files in root directory   
-        l = os.listdir(self.root_dir)
-        self.file_names = list(set([x.split('.')[0] for x in l]))
-        self.labels = None
-        if labels_path is not None:
-            self.labels = {}
-            with open(labels_path, "r") as f:
-                labels_dict = json.load(f)
-                for values in labels_dict:
-                    p_pivot = np.array(values['p_pivot'])
-                    p_pivot = self.normalize_input_pivot(p_pivot)
+def normalize_input_pivot(p_pivot):
+    p_pivot[0] = (p_pivot[0] - X_SCALE[0]) / (X_SCALE[1] - X_SCALE[0])
+    p_pivot[1] = (p_pivot[1] - Y_SCALE[0]) / (Y_SCALE[1] - Y_SCALE[0])
+    p_pivot[2] = (p_pivot[2] - Z_SCALE[0]) / (Z_SCALE[1] - Z_SCALE[0])
+    return p_pivot
 
-                    angles = np.array([values['alpha'], values['beta'], values['gamma']])
-                    angles = self.normalize_input_angles(angles)
+def denormalize_input_pivot(p_pivot):
+    p_pivot[0] = p_pivot[0] * (X_SCALE[1] - X_SCALE[0]) + X_SCALE[0]
+    p_pivot[1] = p_pivot[1] * (Y_SCALE[1] - Y_SCALE[0]) + Y_SCALE[0]
+    p_pivot[2] = p_pivot[2] * (Z_SCALE[1] - Z_SCALE[0]) + Z_SCALE[0]
+    return p_pivot
 
-                    self.labels[values['file']] = np.hstack((p_pivot, angles))
+def preprocess_input(file_name, root_dir):
+    volume, x_vec, y_vec, z_vec = import_volume(file_name, root_dir)
 
-    def normalize_input_angles(self, angles):
-        angles[0] = (angles[0] - ALPHA_SCALE[0]) / (ALPHA_SCALE[1] - ALPHA_SCALE[0])
-        angles[1] = (angles[1] - BETA_SCALE[0]) / (BETA_SCALE[1] - BETA_SCALE[0])
-        angles[2] = (angles[2] - GAMMA_SCALE[0]) / (GAMMA_SCALE[1] - GAMMA_SCALE[0])
-        return angles
+    volume_max, kmax = compute_mip(volume)
+    volume_max_range = (np.min(np.abs(volume_max)), np.max(np.abs(volume_max)))
 
-    def denormalize_input_angles(self, angles):
-        angles[0] = angles[0] * (ALPHA_SCALE[1] - ALPHA_SCALE[0]) + ALPHA_SCALE[0]
-        angles[1] = angles[1] * (BETA_SCALE[1] - BETA_SCALE[0]) + BETA_SCALE[0]
-        angles[2] = angles[2] * (GAMMA_SCALE[1] - GAMMA_SCALE[0]) + GAMMA_SCALE[0]
-        return angles
+    # we need to scale by the alpha data
+    alpha_data = np.clip(
+        1.8 * ((np.abs(volume_max) - volume_max_range[0]) / (volume_max_range[1] - volume_max_range[0])) - 0.25, 0,
+        1,
+    )
 
-    def normalize_input_pivot(self, p_pivot):
-        p_pivot[0] = (p_pivot[0] - X_SCALE[0]) / (X_SCALE[1] - X_SCALE[0])
-        p_pivot[1] = (p_pivot[1] - Y_SCALE[0]) / (Y_SCALE[1] - Y_SCALE[0])
-        p_pivot[2] = (p_pivot[2] - Z_SCALE[0]) / (Z_SCALE[1] - Z_SCALE[0])
-        return p_pivot
+    # magnitude of the MIP
+    mip_mag = 20 * np.log10(np.abs(volume_max / np.max(volume_max)))
+    mip_mag = torch.from_numpy(mip_mag)
 
-    def denormalize_input_pivot(self, p_pivot):
-        p_pivot[0] = p_pivot[0] * (X_SCALE[1] - X_SCALE[0]) + X_SCALE[0]
-        p_pivot[1] = p_pivot[1] * (Y_SCALE[1] - Y_SCALE[0]) + Y_SCALE[0]
-        p_pivot[2] = p_pivot[2] * (Z_SCALE[1] - Z_SCALE[0]) + Z_SCALE[0]
-        return p_pivot
+    # phase of the MIP
+    _, volume_max_phase = complex2magphase(
+        np.multiply(volume_max, np.exp(((1j * 2 * math.pi) / LAMBDA) * 2 * z_vec[kmax]))
+    )
+    volume_max_phase = torch.from_numpy(to_degrees(volume_max_phase))
 
-    def __len__(self):
-        return len(self.file_names)
+    # the phase of a selected slice
+    _, V_slice_phase = complex2magphase(volume[:, :, Z_IDX - 1])
+    V_slice_phase = torch.from_numpy(to_degrees(V_slice_phase))
 
-    def __getitem__(self, idx):
+    # The distance of the MIP
+    mip_distance = z_vec[kmax]
+    mip_distance = torch.from_numpy(mip_distance)
 
-        volume, x_vec, y_vec, z_vec = self.import_volume(self.file_names[idx])
+    # The 2D FFT of the MIP
+    S_MIP = compute_fft(volume_max)
+    S_MIP_mag_dB = 20 * np.log10(np.abs(S_MIP))
+    S_MIP_mag_dB = torch.from_numpy(S_MIP_mag_dB)
 
-        volume_max, kmax = compute_mip(volume)
-        volume_max_range = (np.min(np.abs(volume_max)), np.max(np.abs(volume_max)))
+    # 2D FFT of a single slice
+    S_slice = compute_fft(volume[:, :, Z_IDX - 1])
+    S_slice_mag_dB = 20 * np.log10(np.abs(S_slice))
+    S_slice_mag_dB = torch.from_numpy(S_slice_mag_dB)
 
-        # we need to scale by the alpha data
-        alpha_data = np.clip(
-            1.8 * ((np.abs(volume_max) - volume_max_range[0]) / (volume_max_range[1] - volume_max_range[0])) - 0.25, 0,
-            1,
-        )
+    preprocessed_input = torch.stack(
+        (mip_mag, volume_max_phase, V_slice_phase, mip_distance, S_MIP_mag_dB, S_slice_mag_dB))
+    preprocessed_input = preprocessed_input.type(torch.float32)
 
-        # magnitude of the MIP
-        mip_mag = 20 * np.log10(np.abs(volume_max / np.max(volume_max)))
-        mip_mag = torch.from_numpy(mip_mag)
+    return preprocessed_input
+    
 
-        # phase of the MIP
-        _, volume_max_phase = complex2magphase(
-            np.multiply(volume_max, np.exp(((1j * 2 * math.pi) / LAMBDA) * 2 * z_vec[kmax]))
-        )
-        volume_max_phase = torch.from_numpy(to_degrees(volume_max_phase))
-
-        # the phase of a selected slice
-        _, V_slice_phase = complex2magphase(volume[:, :, Z_IDX - 1])
-        V_slice_phase = torch.from_numpy(to_degrees(V_slice_phase))
-
-        # The distance of the MIP
-        mip_distance = z_vec[kmax]
-        mip_distance = torch.from_numpy(mip_distance)
-
-        # The 2D FFT of the MIP
-        S_MIP = compute_fft(volume_max)
-        S_MIP_mag_dB = 20 * np.log10(np.abs(S_MIP))
-        S_MIP_mag_dB = torch.from_numpy(S_MIP_mag_dB)
-
-        # 2D FFT of a single slice
-        S_slice = compute_fft(volume[:, :, Z_IDX - 1])
-        S_slice_mag_dB = 20 * np.log10(np.abs(S_slice))
-        S_slice_mag_dB = torch.from_numpy(S_slice_mag_dB)
-
-        preprocessed_input = torch.stack(
-            (mip_mag, volume_max_phase, V_slice_phase, mip_distance, S_MIP_mag_dB, S_slice_mag_dB))
-        preprocessed_input = preprocessed_input.type(torch.float32)
-
-        label = None
-        if self.labels is not None:
-            label = torch.from_numpy(self.labels[self.file_names[idx]])
-            label.type(torch.float32)
-
-        data = {'inputs': preprocessed_input,
-                'labels': label}
-
-        return data
-
-    def import_volume(self, filename):
+def import_volume(filename, path):
         """Import 3D volumetric data from file.
 
         Args:
@@ -134,8 +100,6 @@ class MicrowaveDataset(Dataset):
         Returns:
             The volume definition given as the coordinate vectors in x, y, and z-direction.
         """
-
-        path = self.root_dir
 
         file_path_img = os.path.join(path, f"{filename}.img")
         file_path_hdr = os.path.join(path, f"{filename}.hdr")
@@ -162,6 +126,47 @@ class MicrowaveDataset(Dataset):
             _z_vec = def_json["origin"]["z"] + np.arange(def_json["dimensions"]["z"]) * def_json["spacing"]["z"]
 
             return _volume, _x_vec, _y_vec, _z_vec
+
+
+class MicrowaveDataset(Dataset):
+
+    def __init__(self, root_dir, labels_path=None):
+        self.root_dir = root_dir
+        self.labels_path = labels_path
+
+        # list all files in root directory   
+        l = os.listdir(self.root_dir)
+        self.file_names = list(set([x.split('.')[0] for x in l]))
+        self.labels = None
+        if labels_path is not None:
+            self.labels = {}
+            with open(labels_path, "r") as f:
+                labels_dict = json.load(f)
+                for values in labels_dict:
+                    p_pivot = np.array(values['p_pivot'])
+                    p_pivot = normalize_input_pivot(p_pivot)
+
+                    angles = np.array([values['alpha'], values['beta'], values['gamma']])
+                    angles = normalize_input_angles(angles)
+
+                    self.labels[values['file']] = np.hstack((p_pivot, angles))
+
+    def __len__(self):
+        return len(self.file_names)
+
+    def __getitem__(self, idx):
+
+        preprocessed_input = preprocess_input(self.file_names[idx], self.root_dir)
+        label = None
+        if self.labels is not None:
+            label = torch.from_numpy(self.labels[self.file_names[idx]])
+            label.type(torch.float32)
+
+        data = {'inputs': preprocessed_input,
+                'labels': label}
+
+        return data
+
 
 def find_min_max(dataset):
     min_x = None
