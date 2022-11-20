@@ -58,7 +58,7 @@ def test(device, model_path):
     torch.cuda.empty_cache()
 
 
-def inference(model, device, input_file_name, input_dir):
+def inference_radar(model, device, input_file_name, input_dir):
 
     model.to(device)
     model.train(False)
@@ -85,6 +85,23 @@ def inference(model, device, input_file_name, input_dir):
     
     return ret_dict
 
+def inference_measurement(model, device, input_file_name, input_dir):
+
+    model.to(device)
+    model.train(False)
+    model.eval()
+    preprocessed_input, _ = preprocess_input(input_file_name, input_dir)
+
+    # convert to batch 1 
+    preprocessed_input = torch.unsqueeze(preprocessed_input, 0)
+
+    preprocessed_input = preprocessed_input.to(device)
+    print(preprocessed_input.get_device(), device)
+    
+    outputs = model(preprocessed_input).detach().cpu().squeeze(0).numpy()
+    
+    return outputs
+
 if __name__ == '__main__':
 
     # print(torch.cuda.device_count())
@@ -104,5 +121,5 @@ if __name__ == '__main__':
 
     model = resnet50(num_classes=6)
     model.load_state_dict(torch.load('../models/model_20221120_063007_70.pth'))
-    ret = inference(model, device, '20221110-134423-525', '/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/radar_measurements/volumes')
+    ret = inference_radar(model, device, '20221110-134423-525', '/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/radar_measurements/volumes')
 

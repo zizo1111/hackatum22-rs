@@ -19,7 +19,7 @@ LAMBDA = C0 / FC
 
 Z_IDX = 0
 
-def process_display(filename, path):
+def process_display(filename, path, title=None):
     volume, x_vec, y_vec, z_vec = import_volume(filename, path)
     
     Nx = x_vec.size
@@ -73,8 +73,9 @@ def process_display(filename, path):
         'max_z': max_z
     }
     np_img = visualize_features([image, 180 / math.pi * volume_max_phase, 180 / math.pi * V_slice_phase, z_vec[kmax],
-       S_MIP_mag_dB, S_slice_mag_dB], vis_dict, filename)
-
+       S_MIP_mag_dB, S_slice_mag_dB], vis_dict, filename, title)
+    plt.close()
+    return np_img
 
 def run_folder(root_dir):
 

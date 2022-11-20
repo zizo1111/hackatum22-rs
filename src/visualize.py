@@ -70,7 +70,7 @@ def display(
   
 
 
-def visualize_features(features, vis_dict, filename=None):
+def visualize_features(features, vis_dict, filename=None, title=None):
     fig, axs = plt.subplots(2, 3, figsize=(17, 10))
     
     x_vec = vis_dict["x_vec"]
@@ -90,6 +90,8 @@ def visualize_features(features, vis_dict, filename=None):
     ky_n = ky * LAMBDA
     max_z = vis_dict['max_z']
 
+    if title is not None:
+        fig.suptitle(title, fontsize=20)
     display(
         features[0],
         img_title="Maximum intensity projection (MIP)",
