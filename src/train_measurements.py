@@ -1,10 +1,10 @@
 import torch
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, ExponentialLR
 
 # PyTorch TensorBoard support
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
-from dataset import MicrowaveDataset
+from dataset import MeasurementDataset
 from resnet import resnet50, resnet101
 
 
@@ -20,7 +20,7 @@ def train_one_epoch(training_loader, optimizer, model, loss_fn, epoch_index, tb_
         # Every data instance is an input + label pair
         inputs = data['inputs'].to(device)
         labels = data['labels'].to(device)
-
+        
         # Zero your gradients for every batch!
         # optimizer.zero_grad()
 
@@ -51,8 +51,8 @@ def train_one_epoch(training_loader, optimizer, model, loss_fn, epoch_index, tb_
 
 
 def train(device):
-    full_dataset = MicrowaveDataset('../data/dummy_measurements/volumes',
-                                    '../data/dummy_measurements/labels_transformed.json')
+    full_dataset = MeasurementDataset('/media/hdd_4tb/Datasets/rohde_and_schwarz_measurements/volumes',
+                                    '/media/hdd_4tb/Datasets/rohde_and_schwarz_measurements/labels.json')
     train_size = int(0.8 * len(full_dataset))
     test_size = len(full_dataset) - train_size
     train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
@@ -60,15 +60,15 @@ def train(device):
     training_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=1)
     validation_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=1)
 
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.BCELoss()
 
-    model = resnet50(num_classes=2)
+    model = resnet50(num_classes=1, sigmoid=True)
     # model = resnet101(num_classes=6)
     # Optimizers specified in the torch.optim package
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3)
 
-    # scheduler = ExponentialLR(optimizer, end_lr=1e-5, num_iter=50)
-    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=5)
+    scheduler = ExponentialLR(optimizer, gamma=0.8)
+    # scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=5)
 
     # learning rate finder
     # lr_finder = LRFinder(model, optimizer, loss_fn, device=device)
@@ -78,10 +78,10 @@ def train(device):
 
     # Initializing in a separate cell so we can easily add more epochs to the same run
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    writer = SummaryWriter('runs/microwave_trainer_{}'.format(timestamp))
+    writer = SummaryWriter('runs_meas/measurements_trainer_{}'.format(timestamp))
     epoch_number = 0
 
-    EPOCHS = 50
+    EPOCHS = 100
     patience = 0
     best_vloss = 1_000_000.
 
@@ -127,14 +127,14 @@ def train(device):
             best_model = model.state_dict()
         else:
             patience += 1
-        if patience > 5:
+        if patience > 15:
             break
 
-        if epoch % 3 == 0:
+        if epoch % 2 == 1:
             scheduler.step()
         epoch_number += 1
         torch.cuda.empty_cache()
-    model_path = 'model_{}_{}'.format(timestamp, epoch_number)
+    model_path = '../models_measurement/model_{}_{}.pth'.format(timestamp, epoch_number)
     torch.save(best_model, model_path)
 
 

@@ -95,12 +95,12 @@ def run_folder(root_dir):
 
 if __name__ == "__main__":
    
-    # process_display(
-    #     r"example-1", r"../examples/"
-    #     #r"20221119-150759-488_reco", r"/media/hdd_4tb/Datasets/rohde_and_schwarz_measurements/"
-    #     )
+    process_display(
+        r"example-1", r"../examples/"
+        #r"20221119-150759-488_reco", r"/media/hdd_4tb/Datasets/rohde_and_schwarz_measurements/"
+        )
 
 
     # plt.show()  
 
-    run_folder(r"/media/hdd_4tb/Datasets/rohde_and_schwarz_measurements/")
+    # run_folder(r"/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/radar_measurements/volumes")

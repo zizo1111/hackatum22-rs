@@ -1,5 +1,5 @@
 import torch
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, ExponentialLR
 
 # PyTorch TensorBoard support
 from torch.utils.tensorboard import SummaryWriter
@@ -67,7 +67,7 @@ def train(device):
     # Optimizers specified in the torch.optim package
     optimizer = torch.optim.Adam(params=model.parameters(), lr=1e-3)
 
-    # scheduler = ExponentialLR(optimizer, end_lr=1e-5, num_iter=50)
+    #scheduler = ExponentialLR(optimizer, gamma=0.8)
     scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=5)
 
     # learning rate finder
@@ -81,7 +81,7 @@ def train(device):
     writer = SummaryWriter('runs/microwave_trainer_{}'.format(timestamp))
     epoch_number = 0
 
-    EPOCHS = 50
+    EPOCHS = 70
     patience = 0
     best_vloss = 1_000_000.
 
@@ -127,11 +127,12 @@ def train(device):
             best_model = model.state_dict()
         else:
             patience += 1
-        if patience > 8:
+        if patience > 15:
             break
 
-        if epoch % 3 == 0:
+        if epoch % 2 == 1:
             scheduler.step()
+            print(scheduler.get_last_lr())
         epoch_number += 1
         torch.cuda.empty_cache()
     model_path = 'model_{}_{}'.format(timestamp, epoch_number)

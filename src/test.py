@@ -61,13 +61,15 @@ def test(device, model_path):
 def inference(model, device, input_file_name, input_dir):
 
     model.to(device)
+    model.train(False)
     model.eval()
     preprocessed_input, _ = preprocess_input(input_file_name, input_dir)
 
     # convert to batch 1 
     preprocessed_input = torch.unsqueeze(preprocessed_input, 0)
-    preprocessed_input.to(device)
 
+    preprocessed_input = preprocessed_input.to(device)
+    print(preprocessed_input.get_device(), device)
     
     outputs = model(preprocessed_input).detach().cpu().squeeze(0).numpy()
 
@@ -92,11 +94,15 @@ if __name__ == '__main__':
         # device = torch.cuda.current_device()
         device = 'cuda'
 
-    #test(device, '../models/model_20221119_115416_25.pth')
-    #test(device, '../models/model_20221119_134025_30_0.02.pth')
-    #test(device, '../models/model_20221119_152727_18_best_0.004.pth')
+    #test(device, '../models/model_20221119_115416_25.pth')# -> best model loss 0.11286414414644241 
+    
+    # test(device, '../models/model_20221120_063007_70.pth') #  -> best model loss 0.11286414414644241 
+    # test(device, '../models/model_20221120_060513_45.pth') #  0.14772295951843262 
+    # test(device, '../models/model_20221120_053908_31.pth') #  0.13020381331443787 
+    # test(device, '../models/model_20221120_051036_30.pth') # loss 0.16905595362186432 
+    # test(device, '../models/model_20221119_152727_18_best_0.004.pth') #  0.2610507607460022 
 
     model = resnet50(num_classes=6)
-    model.load_state_dict(torch.load('../models/model_20221119_152727_18_best_0.004.pth'))
-    ret = inference(model, device, 'example-1', '../examples')
+    model.load_state_dict(torch.load('../models/model_20221120_063007_70.pth'))
+    ret = inference(model, device, '20221110-134423-525', '/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/radar_measurements/volumes')
 

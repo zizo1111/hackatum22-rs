@@ -100,7 +100,7 @@ def preprocess_input(file_name, root_dir):
         'alpha_data' : alpha_data,
         'max_z': max_z
     }
-    
+
     return preprocessed_input, vis_dict
     
 
@@ -180,6 +180,43 @@ class MicrowaveDataset(Dataset):
 
         return data
 
+class MeasurementDataset(Dataset):
+
+    def __init__(self, root_dir, labels_path=None):
+        self.root_dir = root_dir
+        self.labels_path = labels_path
+
+        # list all files in root directory   
+        l = os.listdir(self.root_dir)
+        files = []
+        for x in l:
+            split = x.split('.')
+            if(split[1] != 'png'):
+                files.append(split[0])
+        self.file_names = list(set(files))
+
+        if labels_path is not None:
+            self.labels = {}
+            with open(labels_path, "r") as f:
+                labels_dict = json.load(f)
+                for values in labels_dict:
+                    self.labels[values['file']] = values['empty']
+
+    def __len__(self):
+        return len(self.file_names)
+
+    def __getitem__(self, idx):
+
+        preprocessed_input, _ = preprocess_input(self.file_names[idx], self.root_dir)
+        label = None
+        if self.labels is not None:
+            label = torch.tensor([self.labels[self.file_names[idx]]])
+            label.type(torch.float32)
+
+        data = {'inputs': preprocessed_input,
+                'labels': label}
+
+        return data
 
 def find_min_max(dataset):
     min_x = None
