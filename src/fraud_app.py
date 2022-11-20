@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from resnet import resnet50
-from test import inference_radar
+from test import inference_measurement
 from main import process_display
 
 import torch
@@ -70,14 +70,14 @@ if __name__ == '__main__':
 
     cv2.namedWindow('Fraud Detectron')
     cv2.setMouseCallback('Fraud Detectron',process_click)
-    out = cv2.VideoWriter('outpy.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 30, (720,800))
+    out = cv2.VideoWriter('outpy_fraud2.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 30, (720,800))
 
     # create button image
-    control_image = np.zeros((800,720,3), np.uint8)
+    control_image = np.zeros((500,720,3), np.uint8)
     control_image[button[0]:button[1],button[2]:button[3]] = 180
     cv2.putText(control_image, 'Load Test Volume',(230,50),cv2.FONT_HERSHEY_PLAIN, 2,(0),3)
 
-    ref_image_name = "fraud_test1"
+    ref_image_name = "test1_fraud"
     ref_image_dir = "../examples/"
     ref_image = process_display(
         ref_image_name, ref_image_dir, title = 'Test image'
@@ -90,28 +90,26 @@ if __name__ == '__main__':
 
     test_drawn = False
     while True:
-        cv2.imshow('Radar Detectron', control_image)
+        cv2.imshow('Fraud Detectron', control_image)
         key = cv2.waitKey(1) & 0xFF
         print("test")
         if test_drawn is False and set_test:
-            model = resnet50(num_classes=6)
-            model.load_state_dict(torch.load('../models/model_20221120_063007_70.pth'))
+            model = resnet50(num_classes=1, sigmoid=True)
+            model.load_state_dict(torch.load('../models_measurement/model_20221120_070636_19.pth'))
 
             device = torch.device("cpu")
             if torch.cuda.is_available():
                 # device = torch.cuda.current_device()
                 device = 'cuda'
 
-            test_dict = inference_radar(model, device, '20221110-134426-875', '/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/radar_measurements/volumes')
-            test_vol = ['20221110-134426-875', '/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/radar_measurements/volumes']
-            test_image = process_display(
-            test_vol[0], test_vol[1], title = 'Test image'
-            #r"20221119-150759-488_reco", r"/media/hdd_4tb/Datasets/rohde_and_schwarz_measurements/"
-            )
-            test_image = resizeAndPad(test_image,(300,600))
-            control_image[470:770,60:660,:] = test_image[:,:,::-1]
-            p_pivot_error, alpha_error, beta_error, gamma_error = compare_values(ref_dict, test_dict)
-            cv2.putText(control_image, 'Mislignments :p_pivot {:.4f}, alpha {:.4f}, beta {:.4f}, gamma {:.4f}'.format(p_pivot_error, alpha_error, beta_error, gamma_error),(50,400),cv2.FONT_HERSHEY_PLAIN, 1,(255, 255, 255),1)
+            test_dict = inference_measurement(model, device, 'test2_fraud', '../examples/')
+            present = 'True'
+            if test_dict < 0.5:
+                present = 'True'
+            else:
+                present = 'False'
+
+            cv2.putText(control_image, 'Object present: ' + present,(50,400),cv2.FONT_HERSHEY_PLAIN, 1,(255, 255, 255),1)
 
             test_drawn = True
 
