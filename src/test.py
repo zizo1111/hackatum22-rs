@@ -10,8 +10,8 @@ from dataset import denormalize_input_angles, denormalize_input_pivot, preproces
 
 
 def test(device, model_path):
-    test_dataset = MicrowaveDataset('../data/radar_measurements/volumes',
-                                    '../data/radar_measurements/labels_transformed.json')
+    test_dataset = MicrowaveDataset('/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/radar_measurements/volumes',
+                                    '/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/radar_measurements/labels_transformed.json')
 
     # Create data loaders for our datasets; 
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=4, shuffle=False, num_workers=1)
@@ -62,7 +62,7 @@ def inference(model, device, input_file_name, input_dir):
 
     model.to(device)
     model.eval()
-    preprocessed_input = preprocess_input(input_file_name, input_dir)
+    preprocessed_input, _ = preprocess_input(input_file_name, input_dir)
 
     # convert to batch 1 
     preprocessed_input = torch.unsqueeze(preprocessed_input, 0)
@@ -88,9 +88,9 @@ if __name__ == '__main__':
     # print(torch.cuda.device_count())
     # print(torch.cuda.get_device_name(0))
     device = torch.device("cpu")
-    # if torch.cuda.is_available():
-    #     # device = torch.cuda.current_device()
-    #     device = 'cuda'
+    if torch.cuda.is_available():
+        # device = torch.cuda.current_device()
+        device = 'cuda'
 
     #test(device, '../models/model_20221119_115416_25.pth')
     #test(device, '../models/model_20221119_134025_30_0.02.pth')

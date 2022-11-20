@@ -50,6 +50,11 @@ def preprocess_input(file_name, root_dir):
     volume_max, kmax = compute_mip(volume)
     volume_max_range = (np.min(np.abs(volume_max)), np.max(np.abs(volume_max)))
 
+    counts = np.bincount(np.array(kmax.flat))
+    counts[0] = 0
+    counts[-1] = 0
+    max_z = np.argmax(counts)
+
     # we need to scale by the alpha data
     alpha_data = np.clip(
         1.8 * ((np.abs(volume_max) - volume_max_range[0]) / (volume_max_range[1] - volume_max_range[0])) - 0.25, 0,
@@ -67,7 +72,7 @@ def preprocess_input(file_name, root_dir):
     volume_max_phase = torch.from_numpy(to_degrees(volume_max_phase))
 
     # the phase of a selected slice
-    _, V_slice_phase = complex2magphase(volume[:, :, Z_IDX - 1])
+    _, V_slice_phase = complex2magphase(volume[:, :, max_z - 1])
     V_slice_phase = torch.from_numpy(to_degrees(V_slice_phase))
 
     # The distance of the MIP
@@ -80,7 +85,7 @@ def preprocess_input(file_name, root_dir):
     S_MIP_mag_dB = torch.from_numpy(S_MIP_mag_dB)
 
     # 2D FFT of a single slice
-    S_slice = compute_fft(volume[:, :, Z_IDX - 1])
+    S_slice = compute_fft(volume[:, :, max_z - 1])
     S_slice_mag_dB = 20 * np.log10(np.abs(S_slice))
     S_slice_mag_dB = torch.from_numpy(S_slice_mag_dB)
 
@@ -88,7 +93,15 @@ def preprocess_input(file_name, root_dir):
         (mip_mag, volume_max_phase, V_slice_phase, mip_distance, S_MIP_mag_dB, S_slice_mag_dB))
     preprocessed_input = preprocessed_input.type(torch.float32)
 
-    return preprocessed_input
+    vis_dict = {
+        'x_vec' : x_vec,
+        'y_vec' : y_vec,
+        'z_vec' : z_vec,
+        'alpha_data' : alpha_data,
+        'max_z': max_z
+    }
+    
+    return preprocessed_input, vis_dict
     
 
 def import_volume(filename, path):
@@ -156,7 +169,7 @@ class MicrowaveDataset(Dataset):
 
     def __getitem__(self, idx):
 
-        preprocessed_input = preprocess_input(self.file_names[idx], self.root_dir)
+        preprocessed_input, _ = preprocess_input(self.file_names[idx], self.root_dir)
         label = None
         if self.labels is not None:
             label = torch.from_numpy(self.labels[self.file_names[idx]])

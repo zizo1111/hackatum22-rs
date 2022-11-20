@@ -51,14 +51,14 @@ def train_one_epoch(training_loader, optimizer, model, loss_fn, epoch_index, tb_
 
 
 def train(device):
-    full_dataset = MicrowaveDataset('../data/dummy_measurements/volumes',
-                                    '../data/dummy_measurements/labels_transformed.json')
+    full_dataset = MicrowaveDataset('/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/dummy_measurements/volumes',
+                                    '/media/hdd_4tb/Datasets/rohde_and_schwarz_dataset/radar-task/dummy_measurements/labels_transformed.json')
     train_size = int(0.8 * len(full_dataset))
     test_size = len(full_dataset) - train_size
     train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
     # Create data loaders for our datasets; shuffle for training, not for validation
-    training_loader = torch.utils.data.DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=1)
-    validation_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=1)
+    training_loader = torch.utils.data.DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=1)
+    validation_loader = torch.utils.data.DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=1)
 
     loss_fn = torch.nn.MSELoss()
 
@@ -127,7 +127,7 @@ def train(device):
             best_model = model.state_dict()
         else:
             patience += 1
-        if patience > 5:
+        if patience > 8:
             break
 
         if epoch % 3 == 0:
