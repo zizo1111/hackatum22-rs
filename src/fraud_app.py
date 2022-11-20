@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     cv2.namedWindow('Fraud Detectron')
     cv2.setMouseCallback('Fraud Detectron',process_click)
-    out = cv2.VideoWriter('outpy_fraud2.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 30, (720,800))
+    out = cv2.VideoWriter('outpy_fraud1.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 30, (720,500))
 
     # create button image
     control_image = np.zeros((500,720,3), np.uint8)
@@ -102,7 +102,7 @@ if __name__ == '__main__':
                 # device = torch.cuda.current_device()
                 device = 'cuda'
 
-            test_dict = inference_measurement(model, device, 'test2_fraud', '../examples/')
+            test_dict = inference_measurement(model, device, 'test1_fraud', '../examples/')
             present = 'True'
             if test_dict < 0.5:
                 present = 'True'
@@ -122,5 +122,6 @@ if __name__ == '__main__':
             #cv2.imwrite('mimi_colour.jpg', img)
             break
         out.write(control_image)
+        
     out.release()
     cv2.destroyAllWindows()
